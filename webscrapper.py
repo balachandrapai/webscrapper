@@ -4,7 +4,7 @@ from bs4 import BeautifulSoup
 import re
 import os
 
-with open("c:/source.txt") as f:
+with open("c:/source_lists.txt") as f:
     content = f.readlines()
 # you may also want to remove whitespace characters like `\n` at the end of each line
 content = [x.strip() for x in content]
