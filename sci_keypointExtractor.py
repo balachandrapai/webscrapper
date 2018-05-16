@@ -70,7 +70,7 @@ def get_boundaries(contents):
         
         regex_greedy_introduction = re.compile(r"\bINTRODUCTION\b", re.IGNORECASE)
         regex_conclusion = re.compile(r"\bSUMMARY|CONCLUSION(|S)\b", re.IGNORECASE)        
-        regex_greedy_conclusion = re.compile(r"\bLessons (L|l)earned\b")
+#        regex_greedy_conclusion = re.compile(r"\bLessons (L|l)earned\b")
         regex_reference = re.compile(r"\bREFERENCES|BIBLIOGRAPHY|ACKNOWLEDGEMENTS\b", re.IGNORECASE)
         
         if(introduction == 0 and introduction_ == 0):
@@ -96,9 +96,9 @@ def get_boundaries(contents):
                 if regex_conclusion.search(line) != None and ('C' in line or 'S' in line):
                     conclusion = linenum + introduction_
                     continue
-                elif regex_greedy_conclusion.search(line) != None:
-                    conclusion = linenum + introduction_
-                    continue
+#                elif regex_greedy_conclusion.search(line) != None:
+#                    conclusion = linenum + introduction_
+#                    continue
                 elif conclusion != 0 and conclusion_ == 0:
                     ##Get the index of the next starting pattern to find the ending of current pattern.
                     if re.match(r"(\d|(IX|IV|V?I{0,3}))\.\s+\w.*", line) != None:
@@ -107,15 +107,15 @@ def get_boundaries(contents):
                     elif regex_reference.search(line) != None:
                         conclusion_ = linenum + introduction_
                         break
-            if(conclusion == 0 and conclusion_ == 0):
-                conclusion, conclusion_ = find_conclusion(contents)
+#            if(conclusion == 0 and conclusion_ == 0):
+#                conclusion, conclusion_ = find_conclusion(contents)
                         
         return abstract, introduction, introduction_, conclusion, conclusion_
     
-    abstract, introduction, introduction_, conclusion, conclusion_ = pattern_lookup(contents)
+    abstract, introduction, introduction_, conclusion, conclusion_ = greedy_pattern_lookup(contents)
 
     return abstract, introduction, introduction_, conclusion, conclusion_
-
+    
 ##extracts information from the text files.
 def feature_extraction(walk_dir, output_dir):
     for root, subdirs, files in os.walk(walk_dir):
