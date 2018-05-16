@@ -1,6 +1,8 @@
 import re
 from nltk.tokenize import sent_tokenize, word_tokenize
-from nltk.corpus import stopwords
+from nltk.corpus import stopwords, wordnet
+from nltk.stem import WordNetLemmatizer
+import nltk
 
 def process_sentences(content):
     """tokenizes the text in sentences, removes stop words.
@@ -10,14 +12,48 @@ def process_sentences(content):
     text = " ".join(content)
     word_tokens = word_tokenize(text)
     stop_words = set(stopwords.words('english'))
-    filtered_words = []
+    filtered_tokens = []
+    processed_sentences = []
     
     for w in word_tokens:
         if w not in stop_words:
-            filtered_words.append(w)
-            filtered_sentences = " ".join(filtered_words)
+            filtered_tokens.append(w)
             
-    return sent_tokenize(filtered_sentences)
+    def get_wordnet_pos(treebank_tag):
+        """
+        return WORDNET POS compliance to WORDENT lemmatization (a,n,r,v) 
+        """
+        if treebank_tag.startswith('J'):
+            return wordnet.ADJ
+        elif treebank_tag.startswith('V'):
+            return wordnet.VERB
+        elif treebank_tag.startswith('N'):
+            return wordnet.NOUN
+        elif treebank_tag.startswith('R'):
+            return wordnet.ADV
+        else:
+            # As default pos in lemmatization is Noun
+            return wordnet.NOUN
+        
+        
+    def pos_tag(filtered_tokens):
+        # find the pos tagging for each tokens [('What', 'WP'), ('can', 'MD'), ('I', 'PRP') ....
+        pos_tokens = [nltk.pos_tag(token) for token in filtered_tokens]
+
+        # lemmatization using pos tagg   
+        # convert into feature set of [('What', 'What', ['WP']), ('can', 'can', ['MD']), ... ie [original WORD, Lemmatized word, POS tag]
+        pos_tokens = [[lemmatizer.lemmatize(word,get_wordnet_pos(pos_tag)) for (word,pos_tag) in pos] for pos in pos_tokens]
+        return pos_tokens
+    
+    lemmatizer = WordNetLemmatizer()
+    
+    lemma_pos_token = pos_tag([filtered_tokens])
+    
+    for sentence in lemma_pos_token:
+        for w in sentence:
+            processed_sentences.append(w)
+    
+    return sent_tokenize(" ".join(processed_sentences))
 
 
 def remove_currency_symbols(text):
@@ -49,25 +85,35 @@ def to_lower(text):
         
     return text
 
-def replace_numbers(text, replace_with='*NUMBER*'):
-    """Replace all numbers in ``text`` str with ``replace_with`` str.
+def remove_numbers(text):
+    """Remove all numbers in ``text``
         Args: text - type: list
         Return: text - type: list
     """
     num_regex = re.compile(r'(?:^|(?<=[^\w,.]))[+–-]?(([1-9]\d{0,2}(,\d{3})+(\.\d*)?)|([1-9]\d{0,2}([ .]\d{3})+(,\d*)?)|(\d*?[.,]\d+)|\d+)(?:$|(?=\b))|(\d+(st|nd|rd|th)\b)')
+    
+    rom_num_regex = re.compile(r'\b(IX|IV|V?I{0,3})\b', re.IGNORECASE)
+    
     for linenum, line in enumerate(text):
         if num_regex.search(line) != None:
-             text[linenum] = num_regex.sub(replace_with, line)
-            
+             text[linenum] = num_regex.sub("", line)
+        elif rom_num_regex.search(line) != None:
+             text[linenum] = rom_num_regex.sub("", line)
+    
+    num_regex_greedy = re.compile(r"\d+")
+    for linenum, line in enumerate(text):
+        if num_regex_greedy.search(line) != None:
+             text[linenum] = num_regex_greedy.sub("", line)
+    
     return text
 
-def strip_punct(text):
+def remove_punct(text):
     """ Returns string after removing all the puntuations
         Args: text - type: String
         Return: no_punct - type: String
     """
     # define punctuation
-    punctuations = '''!()-–“”’[]{};:'"\,<>./?@#$%^&*_~'''
+    punctuations = '''!()-–—©䉷∗•…´‘“”`’[]{};:'"\,<>./?@#$%^&*_~'''
     
     no_punct = ""
     for char in text:
@@ -90,5 +136,37 @@ def normalize_whitespace(text):
         if nonbreaking_space_regex.search(line) != None or linebreak_regex.search(line) != None:
             text[linenum] = nonbreaking_space_regex.sub(' ', linebreak_regex.sub(r'\n', line)).strip()
     
+    
+    return text
+
+def greedy_removeWords(text):
+    """
+    Given ``text`` list, replace one or more words with a single char or double.
+    This is a greedy approach only used for scientific texts
+    """
+    
+    word_regex = re.compile(r'\b(\w{1}|\w{2})\b')
+    
+    for linenum, line in enumerate(text):
+        if word_regex.search(line) != None:
+            text[linenum] = word_regex.sub('', line)
+    
+    return text
+
+def remove_email(text):
+    email_regex = re.compile(r'\b\S*@\S*\s?\b')
+    
+    for linenum, line in enumerate(text):
+        if email_regex.search(line) != None:
+            text[linenum] = email_regex.sub('', line)
+    
+    return text 
+
+def remove_url(text):
+    url_regex = re.compile(r'\b(http\S+)|(www\S+)\b')
+    
+    for linenum, line in enumerate(text):
+        if url_regex.search(line) != None:
+            text[linenum] = url_regex.sub('', line)
     
     return text
